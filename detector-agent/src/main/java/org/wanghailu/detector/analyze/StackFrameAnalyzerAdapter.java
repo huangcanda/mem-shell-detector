@@ -304,9 +304,7 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
 
     // -----------------------------------------------------------------------------------------------
     private static StackItem TOP = new StackItem(Type.VOID_TYPE);
-
-    private static StackItem NULL = new StackItem();
-
+    
     private static StackItem BOOLEAN = new StackItem(Type.BOOLEAN_TYPE);
 
     private static StackItem CHAR = new StackItem(Type.CHAR_TYPE);
@@ -358,7 +356,7 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
         if (Opcodes.TOP.equals(type)) {
             currentContext.push(TOP);
         } else if (Opcodes.NULL.equals(type)) {
-            currentContext.push(NULL);
+            currentContext.push(new StackItem());
         } else if (Opcodes.INTEGER.equals(type)) {
             currentContext.push(INT);
         } else if (Opcodes.LONG.equals(type)) {
