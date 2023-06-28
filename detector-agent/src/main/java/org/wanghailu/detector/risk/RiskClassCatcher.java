@@ -1,39 +1,42 @@
 package org.wanghailu.detector.risk;
 
 import org.wanghailu.detector.log.LogUtils;
-import org.wanghailu.detector.risk.handler.RiskClassOnServerHandler;
-import org.wanghailu.detector.risk.handler.SpringMvcServerHandler;
-import org.wanghailu.detector.risk.handler.TomcatServerHandler;
+import org.wanghailu.detector.risk.handler.*;
 import org.wanghailu.detector.model.DetectorContext;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class RiskClassCatcher {
     
 
     private DetectorContext context;
+
+    List<BaseHandler> handlerList;
     
     public RiskClassCatcher(DetectorContext context) {
         this.context = context;
+        init();
     }
-    
+
+    private void init() {
+        handlerList = new ArrayList<>();
+        handlerList.add(new RiskClassOnServerHandler(context,"风险类"));
+        handlerList.add(new SpringMvcServerHandler(context,"SpringMVC容器"));
+        handlerList.add(new TomcatServerHandler(context,"Tomcat容器"));
+        handlerList.add(new JspOnServerHandler(context,"JSP"));
+    }
+
     /**
      * 从tomcat容器或者spring-mvc上下文中获取风险类信息
      */
     public void filterRiskClassOnServer() {
-        RiskClassOnServerHandler riskClassOnServerHandler = new RiskClassOnServerHandler(context);
-        riskClassOnServerHandler.doHandle();
-        
-        if (isTomcatWebServer()) {
-            TomcatServerHandler tomcatServerHandler = new TomcatServerHandler(context);
-            tomcatServerHandler.doHandle();
-        }else{
-            LogUtils.debug("识别不到Tomcat容器上下文!");
-        }
-        
-        if (isSpringMvcWebServer()) {
-            SpringMvcServerHandler springMvcServerHandler = new SpringMvcServerHandler(context);
-            springMvcServerHandler.doHandle();
-        }else{
-            LogUtils.debug("识别不到SpringMVC容器上下文!");
+        for (BaseHandler handler : handlerList) {
+            if (handler.isEnabled()) {
+                handler.doHandle();
+            }else{
+                LogUtils.debug("识别到项目没有使用"+handler.getInfo()+"!");
+            }
         }
     }
     

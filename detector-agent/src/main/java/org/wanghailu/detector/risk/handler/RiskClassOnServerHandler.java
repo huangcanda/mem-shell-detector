@@ -9,14 +9,14 @@ import org.wanghailu.detector.risk.check.RiskClassCheck;
  * @author cdhuang
  * @date 2023/6/21
  */
-public class RiskClassOnServerHandler {
+public class RiskClassOnServerHandler extends BaseHandler{
     
-    private DetectorContext detectorContext;
-    
-    public RiskClassOnServerHandler(DetectorContext detectorContext) {
-        this.detectorContext = detectorContext;
+
+    public RiskClassOnServerHandler(DetectorContext detectorContext,String info) {
+        super(detectorContext,info);
     }
-    
+
+    @Override
     public void doHandle() {
         for (Class allLoadedClass : detectorContext.getAllLoadedClasses()) {
             if(allLoadedClass.getName().startsWith("net.rebeyond.")||allLoadedClass.getName().startsWith("com.metasploit.")){

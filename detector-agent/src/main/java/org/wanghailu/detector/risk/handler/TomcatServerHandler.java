@@ -23,12 +23,15 @@ import javax.servlet.ServletRequestListener;
 import java.util.HashSet;
 import java.util.Set;
 
-public class TomcatServerHandler {
-    
-    private DetectorContext detectorContext;
-    
-    public TomcatServerHandler(DetectorContext context) {
-        this.detectorContext = context;
+public class TomcatServerHandler extends BaseHandler{
+
+    public TomcatServerHandler(DetectorContext context,String info) {
+        super(context,info);
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return detectorContext.getLoadedClass("org.apache.catalina.core.StandardContext") != null;
     }
     
     public StandardContext getContext() {
@@ -41,7 +44,8 @@ public class TomcatServerHandler {
         Object applicationContext = ReflectUtils.getFieldValue(servletContext, "context");
         return (StandardContext) ReflectUtils.getFieldValue(applicationContext, "context");
     }
-    
+
+    @Override
     public void doHandle() {
         StandardContext context = getContext();
         if (context == null) {

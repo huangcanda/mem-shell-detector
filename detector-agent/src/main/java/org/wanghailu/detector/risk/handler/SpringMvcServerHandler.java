@@ -28,14 +28,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class SpringMvcServerHandler {
+public class SpringMvcServerHandler extends BaseHandler{
     
-    private DetectorContext detectorContext;
-    
-    public SpringMvcServerHandler(DetectorContext detectorContext) {
-        this.detectorContext = detectorContext;
+    public SpringMvcServerHandler(DetectorContext detectorContext,String info) {
+        super(detectorContext,info);
     }
-    
+
+    @Override
+    public boolean isEnabled() {
+        return detectorContext.getLoadedClass("org.springframework.web.servlet.DispatcherServlet") != null;
+    }
+
     public DispatcherServlet getDispatcherServlet() {
         ApplicationContext context = SpringContextUtil.getApplicationContext();
         if (context == null) {
@@ -43,7 +46,8 @@ public class SpringMvcServerHandler {
         }
         return context.getBean(DispatcherServlet.class);
     }
-    
+
+    @Override
     public void doHandle() {
         DispatcherServlet dispatcherServlet = getDispatcherServlet();
         if (dispatcherServlet == null) {

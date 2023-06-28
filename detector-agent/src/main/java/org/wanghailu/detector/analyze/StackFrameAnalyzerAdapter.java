@@ -377,6 +377,10 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
     }
 
     private void pushLdc(final Type type, String value) {
+        //超过长度则直接不记录了
+        if(STRING.equals(type)&&value.length()>detectorContext.getMaxLengthOnSinkMethodName()){
+            return;
+        }
         currentContext.push(new StackItem(type, value).addTrace(Trace.byLdcValue(type, value)));
     }
 

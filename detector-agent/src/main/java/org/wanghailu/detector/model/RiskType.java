@@ -14,7 +14,9 @@ public enum RiskType {
     
     controllerMethod(5),
     
-    handlerInterceptor(6);
+    handlerInterceptor(6),
+
+    jspServlet(7),;
     
     private int value;
 

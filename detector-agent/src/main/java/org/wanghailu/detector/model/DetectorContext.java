@@ -31,6 +31,8 @@ public class DetectorContext {
     private List<RiskCheckable> riskCheckList = new ArrayList<>();
     
     private AnalysisCodeManager analysisCodeManager;
+
+    private int maxLengthOnSinkMethodName = 0;
     
     public DetectorContext(Instrumentation inst, MapArgs mapArgs) {
         this.inst = inst;
@@ -41,6 +43,14 @@ public class DetectorContext {
         
         initMethodRule(MethodRuleConfig.ruleList, commonRuleList, commonRuleMap);
         initMethodRule(MethodRuleConfig.sinkRuleList, sinkRuleList, sinkRuleMap);
+
+        for (MethodRuleOnContext ruleOnContext : sinkRuleList) {
+            int length= ruleOnContext.getRule().getMethodName().length();
+            if(length > maxLengthOnSinkMethodName){
+                maxLengthOnSinkMethodName = length;
+            }
+        }
+
         analysisCodeManager = new AnalysisCodeManager(this);
     }
     
@@ -120,7 +130,11 @@ public class DetectorContext {
     public Map<String, List<MethodRuleOnContext>> getSinkRuleMap() {
         return sinkRuleMap;
     }
-    
+
+    public int getMaxLengthOnSinkMethodName() {
+        return maxLengthOnSinkMethodName;
+    }
+
     public AnalysisCodeManager getAnalysisCodeManager() {
         return analysisCodeManager;
     }
