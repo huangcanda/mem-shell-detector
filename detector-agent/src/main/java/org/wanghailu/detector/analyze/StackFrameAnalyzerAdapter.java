@@ -22,28 +22,29 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class StackFrameAnalyzerAdapter extends MethodVisitor {
-
+    
     private final Map<Label, EnvContext> labelContextMap = new HashMap<>();
-
+    
     private final Set<Label> exceptionHandlerLabels = new HashSet<>();
-
+    
     protected EnvContext currentContext;
-
+    
     protected DetectorContext detectorContext;
-
+    
     protected AnalysisMethodInfo analysisMethodInfo;
-
+    
     protected Set<Trace> returnTrace = new HashSet<>();
-
-
-    public StackFrameAnalyzerAdapter(AnalysisMethodInfo analysisMethodInfo, final MethodVisitor methodVisitor, DetectorContext detectorContext) {
+    
+    
+    public StackFrameAnalyzerAdapter(AnalysisMethodInfo analysisMethodInfo, final MethodVisitor methodVisitor,
+            DetectorContext detectorContext) {
         super(Opcodes.ASM9, methodVisitor);
         currentContext = new EnvContext();
         this.detectorContext = detectorContext;
         this.analysisMethodInfo = analysisMethodInfo;
         AnalysisCodeContext.getInvokeMethodList().add(analysisMethodInfo);
         Type[] argumentTypes = Type.getArgumentTypes(analysisMethodInfo.getMethodDescriptor());
-
+        
         boolean isStatic = (analysisMethodInfo.access & Opcodes.ACC_STATIC) != 0;
         int length = isStatic ? argumentTypes.length : argumentTypes.length + 1;
         List<StackItem> itemList = analysisMethodInfo.getItemList();
@@ -54,11 +55,11 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             } else {
                 item = new StackItem();
             }
-            if(item.type==null){
-                if(argIndex==0 && !isStatic){
-                    item.type = Type.getObjectType(analysisMethodInfo.getClazz().getName().replace(".","/"));
-                }else{
-                    item.type = argumentTypes[isStatic?argIndex:argIndex-1];
+            if (item.type == null) {
+                if (argIndex == 0 && !isStatic) {
+                    item.type = Type.getObjectType(analysisMethodInfo.getClazz().getName().replace(".", "/"));
+                } else {
+                    item.type = argumentTypes[isStatic ? argIndex : argIndex - 1];
                 }
             }
             for (int i = 0; i < item.type.getSize(); i++) {
@@ -66,7 +67,7 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             }
         }
     }
-
+    
     @Override
     public void visitEnd() {
         for (StackItem item : analysisMethodInfo.getItemList()) {
@@ -80,10 +81,10 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
         AnalysisCodeContext.getInvokeMethodList().remove(analysisMethodInfo);
         super.visitEnd();
     }
-
+    
     @Override
     public void visitFrame(final int type, final int numLocal, final Object[] local, final int numStack,
-                           final Object[] stack) {
+            final Object[] stack) {
         int stackSize = 0;
         for (int i = 0; i < numStack; i++) {
             Object typ = stack[i];
@@ -118,19 +119,19 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
         }
         super.visitFrame(type, numLocal, local, numStack, stack);
     }
-
+    
     @Override
     public void visitInsn(final int opcode) {
         super.visitInsn(opcode);
         execute(opcode, 0, null);
     }
-
+    
     @Override
     public void visitIntInsn(final int opcode, final int operand) {
         super.visitIntInsn(opcode, operand);
         execute(opcode, operand, null);
     }
-
+    
     @Override
     public void visitVarInsn(final int opcode, final int var) {
         super.visitVarInsn(opcode, var);
@@ -139,13 +140,13 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
         }
         execute(opcode, var, null);
     }
-
+    
     @Override
     public void visitTypeInsn(final int opcode, final String type) {
         super.visitTypeInsn(opcode, type);
         execute(opcode, 0, type);
     }
-
+    
     @Override
     public void visitFieldInsn(final int opcode, final String owner, final String name, final String descriptor) {
         super.visitFieldInsn(opcode, owner, name, descriptor);
@@ -169,20 +170,20 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
                 throw new IllegalArgumentException("Invalid opcode " + opcode);
         }
     }
-
+    
     @Override
     public void visitMethodInsn(final int opcodeAndSource, final String owner, final String name,
-                                final String descriptor, final boolean isInterface) {
+            final String descriptor, final boolean isInterface) {
         super.visitMethodInsn(opcodeAndSource, owner, name, descriptor, isInterface);
-
+        
         int opcode = opcodeAndSource & ~Opcodes.SOURCE_MASK;
-
+        
         List<StackItem> argList = popByDescriptor(descriptor);
         if (opcode != Opcodes.INVOKESTATIC) {
             argList.add(pop());
         }
         Collections.reverse(argList);
-
+        
         CodeMethodInvokeContext context = new CodeMethodInvokeContext(opcode, owner, name, descriptor, isInterface,
                 argList);
         List<StackItem> items = detectorContext.getAnalysisCodeManager().analysisMethodOnCode(context);
@@ -197,28 +198,28 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
         detectorContext.getAnalysisCodeManager().checkSinkMethod(context);
         pushDescriptorWithItemList(descriptor, items, false);
     }
-
-
+    
+    
     @Override
     public void visitInvokeDynamicInsn(final String name, final String descriptor, final Handle bootstrapMethodHandle,
-                                       final Object... bootstrapMethodArguments) {
+            final Object... bootstrapMethodArguments) {
         super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
         List<StackItem> argList = popByDescriptor(descriptor);
-        CodeMethodInvokeContext context = new CodeMethodInvokeContext(Opcodes.INVOKEDYNAMIC, analysisMethodInfo.getClazz().getName().replace(".", "/"), name, descriptor, true,
-                argList);
+        CodeMethodInvokeContext context = new CodeMethodInvokeContext(Opcodes.INVOKEDYNAMIC,
+                analysisMethodInfo.getClazz().getName().replace(".", "/"), name, descriptor, true, argList);
         Collections.reverse(argList);
         Trace trace = Trace.byMethodInfo(context);
         argList.add(new StackItem().addTrace(trace));
         pushDescriptorWithItemList(descriptor, argList, false);
     }
-
+    
     @Override
     public void visitJumpInsn(final int opcode, final Label label) {
         super.visitJumpInsn(opcode, label);
         execute(opcode, 0, null);
         saveLabelContext(label);
     }
-
+    
     @Override
     public void visitLabel(final Label label) {
         super.visitLabel(label);
@@ -230,7 +231,7 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             currentContext.push();
         }
     }
-
+    
     @Override
     public void visitLdcInsn(final Object value) {
         super.visitLdcInsn(value);
@@ -263,13 +264,13 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             throw new IllegalArgumentException();
         }
     }
-
+    
     @Override
     public void visitIincInsn(final int var, final int increment) {
         super.visitIincInsn(var, increment);
         execute(Opcodes.IINC, var, null);
     }
-
+    
     @Override
     public void visitTableSwitchInsn(final int min, final int max, final Label dflt, final Label... labels) {
         super.visitTableSwitchInsn(min, max, dflt, labels);
@@ -279,7 +280,7 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             saveLabelContext(label);
         }
     }
-
+    
     @Override
     public void visitLookupSwitchInsn(final Label dflt, final int[] keys, final Label[] labels) {
         super.visitLookupSwitchInsn(dflt, keys, labels);
@@ -289,46 +290,46 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             saveLabelContext(label);
         }
     }
-
+    
     @Override
     public void visitMultiANewArrayInsn(final String descriptor, final int numDimensions) {
         super.visitMultiANewArrayInsn(descriptor, numDimensions);
         execute(Opcodes.MULTIANEWARRAY, numDimensions, descriptor);
     }
-
+    
     @Override
     public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
         exceptionHandlerLabels.add(handler);
         super.visitTryCatchBlock(start, end, handler, type);
     }
-
+    
     // -----------------------------------------------------------------------------------------------
     private static StackItem TOP = new StackItem(Type.VOID_TYPE);
     
     private static StackItem BOOLEAN = new StackItem(Type.BOOLEAN_TYPE);
-
+    
     private static StackItem CHAR = new StackItem(Type.CHAR_TYPE);
-
+    
     private static StackItem BYTE = new StackItem(Type.BYTE_TYPE);
-
+    
     private static StackItem SHORT = new StackItem(Type.SHORT_TYPE);
-
+    
     private static StackItem INT = new StackItem(Type.INT_TYPE);
-
+    
     private static StackItem FLOAT = new StackItem(Type.FLOAT_TYPE);
-
+    
     private static StackItem LONG = new StackItem(Type.LONG_TYPE);
-
+    
     private static StackItem DOUBLE = new StackItem(Type.DOUBLE_TYPE);
-
+    
     public static Type STRING = Type.getObjectType("java/lang/String");
-
+    
     public static Type CLASS = Type.getObjectType("java/lang/Class");
-
+    
     public static Type METHOD_TYPE = Type.getObjectType("java/lang/invoke/MethodType");
-
+    
     public static Type METHOD_HANDLE = Type.getObjectType("java/lang/invoke/MethodHandle");
-
+    
     private void saveLabelContext(Label label) {
         EnvContext oldEnvContext;
         if (labelContextMap.containsKey(label)) {
@@ -340,18 +341,18 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
         EnvContext newEnvContext = oldEnvContext.copy();
         labelContextMap.put(label, newEnvContext);
     }
-
+    
     private StackItem get(final int local) {
         return currentContext.getVariable(local);
     }
-
+    
     private void set(final int local, final StackItem type) {
         while (local >= currentContext.variableSize()) {
             currentContext.addVariable(TOP);
         }
         currentContext.setVariable(local, type);
     }
-
+    
     private void push(Integer type) {
         if (Opcodes.TOP.equals(type)) {
             currentContext.push(TOP);
@@ -371,19 +372,20 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             throw new AssertionError();
         }
     }
-
+    
     private void push(final StackItem type) {
         currentContext.push(type);
     }
-
+    
     private void pushLdc(final Type type, String value) {
         //超过长度则直接不记录了
-        if(STRING.equals(type)&&value.length()>detectorContext.getMaxLengthOnSinkMethodName()){
+        if (STRING.equals(type) && value.length() > detectorContext.getMaxLengthOnSinkMethodName()) {
+            currentContext.push(new StackItem(type));
             return;
         }
         currentContext.push(new StackItem(type, value).addTrace(Trace.byLdcValue(type, value)));
     }
-
+    
     private void pushDescriptor(final String fieldOrMethodDescriptor, StackItem... argItems) {
         if (argItems != null && argItems.length > 0) {
             pushDescriptorWithItemList(fieldOrMethodDescriptor, Arrays.stream(argItems).collect(Collectors.toList()),
@@ -391,24 +393,24 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
         } else {
             pushDescriptorWithItemList(fieldOrMethodDescriptor, null, false);
         }
-
+        
     }
-
+    
     private Set<Trace> getTraceInfo(List<StackItem> argItems) {
         if (argItems == null || argItems.size() == 0) {
             return null;
         }
         Set<Trace> traces = new HashSet<>();
         for (StackItem argItem : argItems) {
-            if(argItem!=null){
+            if (argItem != null) {
                 traces.addAll(argItem.getTraces());
             }
         }
         return traces;
     }
-
+    
     private void pushDescriptorWithItemList(final String fieldOrMethodDescriptor, List<StackItem> argItems,
-                                            boolean isCheckCast) {
+            boolean isCheckCast) {
         String descriptor =
                 fieldOrMethodDescriptor.charAt(0) == '(' ? Type.getReturnType(fieldOrMethodDescriptor).getDescriptor()
                         : fieldOrMethodDescriptor;
@@ -444,7 +446,7 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             case 'L':
                 if (isCheckCast) {
                     StackItem item = argItems.get(0);
-                    if(item!=null){
+                    if (item != null) {
                         item.type = Type.getType(descriptor);
                     }
                     currentContext.push(item);
@@ -458,36 +460,36 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
                 throw new AssertionError();
         }
     }
-
+    
     private StackItem pop() {
         return currentContext.pop();
     }
-
+    
     private List<StackItem> pop(final int numSlots) {
         return currentContext.pop(numSlots);
     }
-
-
+    
+    
     public List<StackItem> popByDescriptor(String descriptor) {
         List<StackItem> result = new ArrayList<>();
         char firstDescriptorChar = descriptor.charAt(0);
         if (firstDescriptorChar == '(') {
             Type[] types = Type.getArgumentTypes(descriptor);
             for (Type type : types) {
-                List<StackItem> items= pop(type.getSize());
-                if(items.size()>0){
+                List<StackItem> items = pop(type.getSize());
+                if (items.size() > 0) {
                     result.add(items.get(0));
                 }
             }
         } else if (firstDescriptorChar == 'J' || firstDescriptorChar == 'D') {
-            List<StackItem> items= pop(2);
+            List<StackItem> items = pop(2);
             result.add(items.get(0));
         } else {
             result.add(pop());
         }
         return result;
     }
-
+    
     private void execute(final int opcode, final int intArg, final String stringArg) {
         if (opcode == Opcodes.JSR || opcode == Opcodes.RET) {
             throw new IllegalArgumentException("JSR/RET are not supported");
@@ -599,11 +601,11 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
             case Opcodes.SASTORE:
             case Opcodes.FASTORE:
             case Opcodes.AASTORE:
-                List<StackItem> items=pop(3);
-                if(items.size()==3){
+                List<StackItem> items = pop(3);
+                if (items.size() == 3) {
                     StackItem eleItem = items.get(0);
                     StackItem arrayItem = items.get(2);
-                    if(eleItem!=null && arrayItem!=null){
+                    if (eleItem != null && arrayItem != null) {
                         arrayItem.addTraces(eleItem.getTraces());
                     }
                 }
@@ -848,15 +850,15 @@ public class StackFrameAnalyzerAdapter extends MethodVisitor {
                 throw new IllegalArgumentException("Invalid opcode " + opcode);
         }
     }
-
+    
     public EnvContext getCurrentContext() {
         return currentContext;
     }
-
+    
     public Set<Trace> getReturnTrace() {
         return returnTrace;
     }
-
+    
     public AnalysisMethodInfo getAnalysisMethodInfo() {
         return analysisMethodInfo;
     }

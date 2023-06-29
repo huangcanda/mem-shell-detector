@@ -7,6 +7,6 @@ package org.wanghailu.detector.risk.check;
 public class JspServletCheck extends RiskMethodCheck{
 
     public JspServletCheck(Class clazz) {
-        super(clazz, "_jspService","(Ljavax/servlet/ServletRequest;Ljavax/servlet/ServletResponse;)V");
+        super(clazz, "_jspService","(Ljavax/servlet/http/HttpServletRequest;Ljavax/servlet/http/HttpServletResponse;)V");
     }
 }
